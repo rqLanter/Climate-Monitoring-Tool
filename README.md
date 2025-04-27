@@ -26,5 +26,6 @@ pip install -r requirements.txt
 python src/data_analyzer.py
 ```
 После запуска прикрепите файл last_export.csv
-Пример графика:
+
+##Пример графика:
 ![image](https://github.com/user-attachments/assets/1a3d2106-8e43-407f-a698-5c9dccec4374)
