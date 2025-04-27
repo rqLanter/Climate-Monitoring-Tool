@@ -23,7 +23,7 @@
 pip install -r requirements.txt
 
 Запустите приложение:
-python src/data_analyzer.py
+python src/weatherMonitor.py
 ```
 После запуска прикрепите файл last_export.csv
 
