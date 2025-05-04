@@ -9,55 +9,85 @@ from matplotlib import dates
 import json
 from datetime import datetime, timedelta
 
+#глобальные переменные для хранения данных из файлов
 csv_data = None
 json_data = None
 
+#Функция для чтения CSV-файла
 def read_csv_file(filename):
-    data = pd.read_csv(filename, sep=';', encoding='cp1251', skiprows=1)
-    data.columns = data.columns.str.strip()
-    data['Дата'] = pd.to_datetime(data['Date'])
+    """
+    Читает CSV-файл с разделителем ';', пропускает первую строку и преобразует столбец 'Date' в тип datetime.
+    Возвращает DataFrame с обработанными данными.
+    """
+    data = pd.read_csv(filename, sep=';', encoding='cp1251', skiprows=1)  # Чтение файла с нужной кодировкой и пропуском первой строки
+    data.columns = data.columns.str.strip()  # Удаление пробелов из названий столбцов
+    data['Дата'] = pd.to_datetime(data['Date'])  # Преобразование столбца 'Date' в datetime и создание нового столбца 'Дата'
     return data
 
+#Функция для чтения JSON-файла построчно
 def read_json_file(filename):
+    """
+    Читает JSON-файл, содержащий по одной JSON-записи на строку.
+    Объединяет записи в словарь, затем преобразует его в DataFrame.
+    Преобразует столбец 'Date' в тип datetime и добавляет столбец 'Дата'.
+    """
     with open(filename, 'r', encoding='utf-8') as f:
         data_dict = {}
         for line in f:
-            entry = json.loads(line)
-            data_dict.update(entry)
-    data = pd.DataFrame.from_dict(data_dict, orient='index')
-    data['Дата'] = pd.to_datetime(data['Date'])
+            entry = json.loads(line)  #Декодирование каждой строки как JSON
+            data_dict.update(entry)  #Объединение всех словарей
+    data = pd.DataFrame.from_dict(data_dict, orient='index')  #Преобразование словаря в DataFrame
+    data['Дата'] = pd.to_datetime(data['Date'])  #Преобразование в datetime
     return data
 
+#Функция выбора CSV-файла с помощью диалогового окна
 def select_csv_file():
+    """
+    Открывает диалоговое окно для выбора CSV-файла.
+    Загружает данные в переменную csv_data, обновляет метки и комбобоксы, отображает диапазон дат.
+    """
     global csv_data
     filename = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
     if filename:
         csv_data = read_csv_file(filename)
         csv_file_label.config(text=f"Выбран файл CSV: {filename}")
         update_comboboxes(csv_data)
+
+    #Отображение диапазона дат
     start_datetime = csv_data['Дата'].min().strftime('%Y-%m-%d %H:%M:%S')
     end_datetime = csv_data['Дата'].max().strftime('%Y-%m-%d %H:%M:%S')
     date_range_label.config(text=f"Диапазон дат: {start_datetime} - {end_datetime}")
 
+#Функция выбора JSON-файла с помощью диалогового окна
 def select_json_file():
+    """
+    Открывает диалоговое окно для выбора JSON-файла (в формате *.txt).
+    Загружает данные в переменную json_data, обновляет метки и комбобоксы, отображает диапазон дат.
+    Также размещает комбобокс для выбора прибора.
+    """
     global json_data
     filename = filedialog.askopenfilename(filetypes=[("JSON files", "*.txt")])
     if filename:
         json_data = read_json_file(filename)
         json_file_label.config(text=f"Выбран файл JSON: {filename}")
         update_comboboxes(json_data)
+
     update_comboboxes(json_data)
+
+    #Отображение интерфейса выбора прибора
     device_label = tk.Label(root, text="Выберите прибор")
-    device_label.place(x=460,y=5)
+    device_label.place(x=460, y=5)
     
     device_combobox.place(x=460, y=40)
     device_combobox.bind("<<ComboboxSelected>>", update_y_combobox)
     update_comboboxes(json_data)
+
+    #Отображение диапазона дат
     start_datetime = json_data['Дата'].min().strftime('%Y-%m-%d %H:%M:%S')
     end_datetime = json_data['Дата'].max().strftime('%Y-%m-%d %H:%M:%S')
     date_range_label.config(text=f"Диапазон дат: {start_datetime} - {end_datetime}")
 
-
+#Комбобоксы
 def update_comboboxes(data):
     if csv_data is not None:
         columns = [col for col in data.columns if col not in ['Date', 'RTC_time', 'RTC_date']]
@@ -112,20 +142,48 @@ def update_y_combobox(event):
 additional_y_axes = []
 
 def add_y_axis():
-    new_y_combobox = ttk.Combobox(root)
-    additional_y_axes.append(new_y_combobox)
-    new_x_position = 330 + 180 * (len(additional_y_axes) - 0.5)  
+    """
+    Добавляет новый комбобокс (выпадающий список) для выбора дополнительной Y-оси на графике.
+    Размещает его по координате X с учётом уже добавленных комбобоксов.
+    Обновляет доступные значения в комбобоксах на основе загруженных данных.
+    Если выбран прибор — вызывает обновление данных по выбранному прибору.
+    """
+    new_y_combobox = ttk.Combobox(root)  #Создаём новый комбобокс
+    additional_y_axes.append(new_y_combobox)  #Добавляем его в список дополнительных Y-осей
+
+    #Расчёт позиции по X: сдвигаем каждый следующий комбобокс правее
+    new_x_position = 330 + 180 * (len(additional_y_axes) - 0.5)
     new_y_combobox.place(x=new_x_position, y=130)
-    new_y_combobox.bind("<<ComboboxSelected>>", update_y_combobox) 
+
+    #Назначаем обработчик события выбора значения
+    new_y_combobox.bind("<<ComboboxSelected>>", update_y_combobox)
+
+    
     update_comboboxes(csv_data if csv_data is not None else json_data)
-    if device_combobox.get(): 
-        update_y_combobox(None) 
+
+    #Если выбран прибор — обновляем Y-комбобоксы
+    if device_combobox.get():
+        update_y_combobox(None)
     else:
-        update_comboboxes(csv_data if csv_data is not None else json_data) 
+        update_comboboxes(csv_data if csv_data is not None else json_data)
+
 
 def get_min_max(data, x_col, y_col):
+    #Инициализируем переменные экстремальными значениями
     min_value, max_value = float('inf'), float('-inf')
     min_data, max_data = None, None
+    """
+    Возвращает минимальное и максимальное значения Y-оси и соответствующие им даты X-оси.
+    
+    Аргументы:
+    - data: DataFrame с данными
+    - x_col: название столбца для X-координаты (обычно 'Дата')
+    - y_col: название параметра (столбца), по которому ищем минимум и максимум
+
+    Возвращает:
+    - кортежи: (дата, значение) минимума и максимума
+    """
+
     
     if csv_data is not None:
         min_index = data[y_col].idxmin()
@@ -450,7 +508,7 @@ def chart_et():
         toolbar.update()
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-
+#Индекс комфорта
 def comfort_index(temp):
     if temp > 30:
         return 'Очень жарко'
@@ -525,7 +583,7 @@ def chart_comfort():
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
     
 
-
+#Кнопки (гр. интерфейс)
 root = tk.Tk()
 root.title("Графики")
 root.minsize(650, 550)
